@@ -1,0 +1,8 @@
+name: sfb-book
+channels:
+  - defaults
+dependencies:
+  - pip
+  - astropy=4.2
+  - matplotlib=3.3
+  - numpy=1.19
