@@ -6,3 +6,6 @@ dependencies:
   - astropy=4.2
   - matplotlib=3.3
   - numpy=1.19
+  - conda-forge::ctapipe=0.10.4
+  - conda-forge::eventio
+  - conda-forge::corsikaio
