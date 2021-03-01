@@ -1,14 +1,20 @@
 name: sfb-book
 channels:
+  - conda-forge
   - defaults
 dependencies:
-  - pip
   - astropy=4.2
-  - matplotlib=3.3
-  - numpy=1.19
-  - scikit-learn=0.24
+  - corsikaio
+  - ctapipe=0.10.5
+  - eventio
+  - numdifftools
   - jupyter
+  - matplotlib=3.3
   - notebook
-  - conda-forge::ctapipe=0.10.4
-  - conda-forge::eventio
-  - conda-forge::corsikaio
+  - numpy=1.19
+  - pandas=1.2
+  - pip
+  - scikit-learn=0.24
+  - scipy=1.6
+  - pip:
+    - pyfact==0.26.1
