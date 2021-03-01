@@ -53,6 +53,7 @@ for ax in axs.flat:
 
 for display in displays:
     display.add_colorbar()
+    display.pixels.set_rasterized(True)
 
 
 # displays[1].set_limits_minmax(10, 20)

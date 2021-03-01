@@ -2,6 +2,7 @@ backend: pgf
 
 # size in inches
 figure.figsize: 4.649, 3.099
+figure.constrained_layout.use: True
 figure.dpi: 300
 font.family: serif
 savefig.bbox: tight
