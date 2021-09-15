@@ -24,6 +24,10 @@ build/inverse-problems/fact_unfolding.pdf: inverse-problems/open_crab_sample_unf
 	MAPLOTLIBRC=matplotlibrc TEXINPUTS=$$(pwd): python $<
 
 
+build/obs-sim-mismatches-ml/roc_curves.pdf: obs-sim-mismatches-ml/obs_sim_mismatches.py
+	MAPLOTLIBRC=matplotlibrc TEXINPUTS=$$(pwd): python $<
+
+
 build/inverse-problems/%.hdf5: | build/inverse-problems
 	curl --fail -Lo $@ $(FACT_URL)/$*.hdf5
 
