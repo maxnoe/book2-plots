@@ -1,15 +1,15 @@
-# book2-plots
+ book2-plots
 
 Repository to gather plot / figure generation code for the ML and Physics book
 
 
 ## Plots using python
 
-The needed packages are defined in `environment.yaml`, install anaconda and
+The needed packages are defined in `environment.yml`, install anaconda and
 create the environment using
 
 ```
-conda env create -n environment.yaml
+conda env create -f environment.yml
 ```
 
 Activate the environment:
@@ -31,7 +31,7 @@ $ make
 ## Adding more plots
 
 When adding new plots, make sure they are built by the `Makefile` and
-all requirements needed are added to the `environment.yaml`.
+all requirements needed are added to the `environment.yml`.
 
 If you need input data, either add the files to the repository (if small enough)
 or download them from somewhere using the `Makefile`.
