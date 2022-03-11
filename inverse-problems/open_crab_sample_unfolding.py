@@ -7,6 +7,10 @@ import pandas as pd
 from functools import lru_cache, partial
 from scipy.optimize import minimize
 from numdifftools import Hessian
+from astropy.coordinates import SkyCoord, AltAz, SkyOffsetFrame
+from fact.instrument.constants import LOCATION
+from astropy.time import Time
+import astropy.units as u
 
 INVALID = np.finfo(np.float32).max
 EPS = 1e-10
@@ -24,6 +28,9 @@ e_min_est = 700
 e_min_true = 700
 e_max_est = 15e3
 e_max_true = 15e3
+
+prediction_threshold = 0.8
+theta_cut = np.sqrt(0.025)
 
 
 @lru_cache()
@@ -48,7 +55,7 @@ def tikhonov_reg(f_est, tau, effective_area):
 
     # we regularize on the log of f with acceptance correction,
     # since only that is expected to be flat
-    return tau * np.sum((C @ np.log(f_est[1:-1] / effective_area[1:-1] + EPS)) ** 2)
+    return 0.5 * tau * np.sum((C @ np.log(f_est[1:-1] / effective_area[1:-1] + EPS)) ** 2)
 
 def llh_poisson_tikhonov(f_est, A, g, b, tau, effective_area):
     if np.any(f_est < 0):
@@ -104,7 +111,7 @@ if __name__ == '__main__':
         'theta_deg',
         'corsika_event_header_event_number',
         'corsika_event_header_total_energy',
-    ])
+    ]).query(f'gamma_prediction > {prediction_threshold}')
 
 
     gammas_corsika = read_h5py(
@@ -114,33 +121,63 @@ if __name__ == '__main__':
     )
 
 
-    crab_events = read_h5py('build/inverse-problems/open_crab_sample_dl3.hdf5', key='events', columns=[
-        'gamma_prediction',
-        'gamma_energy_prediction',
-        'theta_deg',
-        'theta_deg_off_1',
-        'theta_deg_off_2',
-        'theta_deg_off_3',
-        'theta_deg_off_4',
-        'theta_deg_off_5',
-    ])
-
+    crab_events = read_h5py('build/inverse-problems/open_crab_sample_dl3.hdf5', key='events')
+    crab_events = crab_events.query(f'gamma_prediction > {prediction_threshold}')
     crab_runs = read_h5py('build/inverse-problems/open_crab_sample_dl3.hdf5', key='runs')
 
+    print('Plotting SkyMap')
+    crab = SkyCoord.from_name('Crab Nebula')
+    coord_est = SkyCoord(
+        ra=crab_events['ra_prediction'].to_numpy() * u.hourangle,
+        dec=crab_events['dec_prediction'].to_numpy() * u.deg
+    )
+
+    wobble_positions = crab_runs[['right_ascension', 'declination']].round(2).drop_duplicates()
+    pointings = SkyCoord(
+        ra=wobble_positions['right_ascension'].to_numpy() * u.hourangle,
+        dec=wobble_positions['declination'].to_numpy() * u.deg,
+    )
+
+    fig, ax  = plt.subplots(1, 1)
+    _, _, _, img = ax.hist2d(
+        coord_est.ra.deg,
+        coord_est.dec.deg,
+        bins=51,
+        range=[[crab.ra.deg - 2, crab.ra.deg + 2], [crab.dec.deg -2, crab.dec.deg + 2]],
+    )
+    img.set_rasterized(True)
+    pointing_plot, = ax.plot(pointings.ra.deg, pointings.dec.deg, 'o', color='white', ms=5, label='Pointing Positions')
+    ax.set_aspect(1)
+    on_region = plt.Circle(xy=(crab.ra.deg, crab.dec.deg), radius=theta_cut, fill=False, edgecolor='C0')
+    ax.add_artist(on_region)
+
+    for pointing in pointings:
+        separation = pointing.separation(crab)
+        pos_angle = pointing.position_angle(crab)
+        increment = (2 * np.pi / 6) * u.rad
+        for i in range(1, 6):
+            angle = pos_angle + i * increment
+            off_position = pointing.directional_offset_by(separation=separation, position_angle=angle)
+
+            off_region = plt.Circle(xy=(off_position.ra.deg, off_position.dec.deg), radius=theta_cut, fill=False, edgecolor='C1')
+            ax.add_artist(off_region)
+
+    ax.legend([on_region, off_region, pointing_plot], ['On Region', 'Off Regions', 'Pointing'], ncol=2, loc='upper right')
+    ax.set_xlabel(r'Right Ascension ($\alpha$) / deg')
+    ax.set_ylabel(r'Declination ($\delta$) / deg')
+    fig.savefig('build/inverse-problems/skymap.pdf')
 
     print('Applying event selection')
     on_time = crab_runs['ontime'].sum()
-    prediction_threshold = 0.8
-    theta_cut = np.sqrt(0.025)
 
-    on_query = f'gamma_prediction > {prediction_threshold} and theta_deg <= {theta_cut}'
+    on_query = f'theta_deg <= {theta_cut}'
     gammas = gammas.query(on_query).copy()
     crab_on = crab_events.query(on_query).copy()
 
     # concancenate each of the off regions
     crab_off = []
     for i in range(1, 6):
-        off_query = f'gamma_prediction > {prediction_threshold} and theta_deg_off_{i} <= {theta_cut}'
+        off_query = f'theta_deg_off_{i} <= {theta_cut}'
         crab_off.append(crab_events.query(off_query))
 
     crab_off = pd.concat(crab_off)
@@ -178,7 +215,7 @@ if __name__ == '__main__':
     ax2.errorbar(bin_centers, a_eff[1:-1], xerr=bin_width / 2, linestyle='')
     ax2.set_xscale('log')
     ax2.set_yscale('log')
-    ax2.set_ylabel(r'$A_\text{eff} \mathbin{\si{\meter\squared}}')
+    ax2.set_ylabel(r'$A_\text{eff} \mathbin{/} \si{\meter\squared}')
     ax2.set_xlabel(r'$E \mathbin{/} \si{\GeV}$')
     ax2.set_ylim(1e3, 1e5)
 
